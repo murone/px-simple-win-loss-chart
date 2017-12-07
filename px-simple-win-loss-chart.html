@@ -2,21 +2,30 @@
 <link rel="import" href="../px-simple-chart-common-behavior/px-simple-chart-common-behavior.html" />
 <link rel="import" href="css/px-simple-win-loss-chart-styles.html"/>
 
+<!-- for popup on each bar -->
+<link rel="import" href="/bower_components/px-popover/px-popover.html"/>
+<link rel="import" href="/bower_components/trans-wip-widget/trans-wip-widget.html">
+
+
 <!--
 
-### Usage
+Use this component to visualize a series of positive & negative values as a bar chart. The series is represented by a sequence of horizontally aligned rectangle bars, the height of each proportionally representing a value.
+
+Positive values are represented above the x-axis in one color, and negative values are displayed below the axis, in a different color - these two colors are configurable. The width and height of the component are also configurable, or can be set to "auto" for a responsive layout.
+
+##### Usage
 
     <px-simple-win-loss-chart chart-data="[1,-2,3]"></px-simple-win-loss-chart>
 
 ### Styling
 The following custom properties are available for styling:
 
-Custom property | Description
-:----------------|:-------------
-`--px-win-loss-border-color` | Border color for the chart
-`--px-win-loss-background-color` | Background color for the chart
-`--px-win-loss-positive-fill-color` | Fill color for positive bars
-`--px-win-loss-negative-fill-color` | Fill color for negative bars
+Custom property | Description | Default
+----------------|-------------|----------
+`--px-win-loss-border-color` | Border color for the chart | `$gray9`
+`--px-win-loss-background-color` | Background color for the chart | `$white`
+`--px-win-loss-positive-fill-color` | Fill color for positive bars | `$dv-basic-green`
+`--px-win-loss-negative-fill-color` | Fill color for negative bars | `$dv-basic-red`
 
 @element px-simple-win-loss-chart
 @blurb A simple win-loss chart for displaying in KPI dashboards
@@ -29,122 +38,176 @@ Custom property | Description
     <style include="px-simple-win-loss-chart-styles"></style>
 
     <template>
-        <svg class="px-simple-win-loss-chart-svg"></svg>
+        <svg id="win-loss" class="px-simple-win-loss-chart-svg"></svg>
+        <px-popover for="win-loss" enhanced="true" orientation="top" position="relative" class="">
+          <div>
+            <span>{{ group }} - {{ screen }}</span>
+            <trans-wip-widget actual="{{actual}}" goal="{{goal}}" expected="{{expected}}"></trans-wip-widget>
+
+          </div>
+        </px-popover>
     </template>
 </dom-module>
 
 <script>
 
-  Polymer({
+    Polymer({
 
-      is: 'px-simple-win-loss-chart',
+        is: 'px-simple-win-loss-chart',
 
-      behaviors: [PxSimpleChartCommonBehavior.common],
+        behaviors: [PxSimpleChartCommonBehavior.common],
 
-      properties: {
-          /**
-          * Width of the chart. Numeric or "auto".
-          * @prop width
-          * @type String
-          */
-          width: {
-              type: String,
-              value: "300"
-          },
-          /**
-          * Height of the chart. Numeric or "auto".
-          * @prop height
-          * @type String
-          */
-          height: {
-              type: String,
-              value: "50"
-          },
-          /**
-          * This attribute defines the series data to be charted. It needs to be passed in as an array.
-          * @prop chartData
-          * @type Array
-          */
-          chartData: {
-              type: Array,
-              observer: '_drawChart',
-              value: function() {
-                return [2,6,-5,4,-3,2,7];
-              }
-          }
-      },
+        minimumHeight: 10,
+        minimumWidth: 10,
 
-      _drawChartDebounced: function() {
-          var that = this;
+        /**
+         * Properties block, expose attribute values to the DOM via 'reflect'
+         *
+         * @property properties
+         * @type Object
+         */
+        properties: {
+            /**
+            * Width of the chart. Numeric or "auto".
+            * @prop width
+            * @type String
+            */
+            width: {
+                type: String,
+                value: "300"
+            },
+            /**
+            * Height of the chart. Numeric or "auto".
+            * @prop height
+            * @type String
+            */
+            height: {
+                type: String,
+                value: "50"
+            },
+            /**
+            * This attribute defines the series data to be charted. It needs to be passed in as an array.
+            * @prop chartData
+            * @type Array
+            */
+            chartData: {
+                type: Array,
+                observer: '_drawChart',
+                value: function() {
+                  return [2,6,-5,4,-3,2,7];
+                }
+            }
 
-          if(this.chartData && this.chartData.length > 0) {
-            // clear the svg element
-            this._clearSVG(this.svg);
-            this._setDimensions();
-            var setSizesPromise = this._getSetSizesPromise();
-            setSizesPromise.then (function (){
-              that._setScales();
-              that._drawBars();
-              // add css class to svg elements using method from pxD3Util
-              that._addStyleScope(that.svg);
+        },
+
+        _drawChartDebounced: function() {
+            var that = this;
+
+            if(this.chartData && this.chartData.length > 0) {
+              // clear the svg element
+              this._clearSVG(this.svg);
+              this._setDimensions();
+              var setSizesPromise = this._getSetSizesPromise();
+              setSizesPromise.then (function (){
+                that._setScales();
+                that._drawBars();
+                // add css class to svg elements using method from pxD3Util
+                that._addStyleScope(that.svg);
+              });
+            } else {
+              var timeout = setTimeout(function(){
+                that._drawChartDebounced();
+              }, 100);
+            }
+        },
+
+        _getSetSizesPromise: function() {
+            var that = this;
+            return new Promise (function (resolve, reject){
+                that.gridColumns = (that.chartData.length * 2) - 1;
+                that.gridWidth = Math.round(that.widthValue / that.gridColumns);
+                that.chartWidth = that.gridWidth * that.gridColumns;
+                that.widthRemainder = that.widthValue % that.gridWidth;
+                that.chartHeight = that.heightValue;
+                that.svg
+                        .attr("width", that.chartWidth)
+                        .attr("height", that.heightValue);
+                resolve(true);
             });
-          } else {
-            var timeout = setTimeout(function(){
-              that._drawChartDebounced();
-            }, 100);
-          }
-      },
+        },
 
-      _getSetSizesPromise: function() {
-          var that = this;
-          return new Promise (function (resolve, reject){
-              that.gridColumns = (that.chartData.length * 2) - 1;
-              that.gridWidth = Math.round(that.widthValue / that.gridColumns);
-              that.chartWidth = that.gridWidth * that.gridColumns;
-              that.widthRemainder = that.widthValue % that.gridWidth;
-              that.chartHeight = that.heightValue;
-              that.svg
-                      .attr("width", that.chartWidth)
-                      .attr("height", that.heightValue);
-              resolve(true);
-          });
-      },
+        _setScales: function() {
+					var valueArray = [0];
+					// console.log(this.chartData);
+					if (this.chartData) {
+						var data = this.chartData;
+						valueArray = [];
 
-      _setScales: function() {
-          // no xscale necessary
-          this.yScale = d3.scale
-              .linear()
-              .domain([d3.min(this.chartData) > 0 ? 0 : d3.min(this.chartData), d3.max(this.chartData)])
-              .range([this.chartHeight, 0]);
-      },
+						for(var i = 0; i < data.length; i++) {
+							valueArray.push(data[i].val);
+						}
+					}
 
-      _drawBars: function() {
-          var that = this;
-          this.chartData.forEach(function(value, i) {
-            var x = (that.gridWidth*2) * i,
-                y = value < 0 ? that.yScale(0) : that.yScale(value),
-                barHeight = Math.abs(that.yScale(value) - that.yScale(0)),
-                colorClass = value < 0 ? "px-negative-fill" : "px-positive-fill"
-            that._drawBar(x, y, that.gridWidth, barHeight, colorClass);
-          });
-          this.svg
-              .append("line")
-              .attr("class", "px-simple-win-loss-chart bar-chart-bottom-line")
-              .attr("x1", 0)
-              .attr("y1", this.yScale(0))
-              .attr("x2", this.chartWidth)
-              .attr("y2", this.yScale(0));
-      },
+					// no xscale necessary
+					this.yScale = d3.scale
+							.linear()
+							.domain([d3.min(valueArray) > 0 ? 0 : d3.min(valueArray), d3.max(valueArray)])
+							.range([this.chartHeight, 0]);
+        },
 
-      _drawBar: function(x, y, width, height, colorClass) {
-          this.svg
-              .append("rect")
-              .attr("class", "bar " + colorClass)
-              .attr("x", x)
-              .attr("y", y)
-              .attr("width", width)
-              .attr("height", height)
-      }
+        _drawBars: function() {
+            var that = this;
+						var valueArray = [];
+	            this.chartData.forEach(function(value, i) {
+								if (value.val !== undefined) {
+		              var x = (that.gridWidth*2) * i,
+		                  y = value.val < 0 ? that.yScale(0) : that.yScale(value.val),
+		                  barHeight = Math.abs(that.yScale(value.val) - that.yScale(0)),
+		                  colorClass = value.val < 0 ? "px-negative-fill" : "px-positive-fill";
+		              that._drawBar(x, y, that.gridWidth, barHeight, colorClass, value.id);
+									console.log(x, y, that.gridWidth, barHeight, colorClass, value.id);
+									var popoverEle = document.createElement('px-popover');
+									popoverEle.position = 'relative';
+									popoverEle.for = value.id;
+									popoverEle.orientation = 'top';
+									popoverEle.enhanced = true;
 
-  });
+									var wipWidget = document.createElement('trans-wip-widget');
+									wipWidget.actual = value.widgetValues.actual;
+									wipWidget.expected = value.widgetValues.expected;
+									wipWidget.goal = value.widgetValues.goal;
+                  that.actual = value.widgetValues.actual;
+                  that.expected = value.widgetValues.expected;
+                  that.goal = value.widgetValues.goal;
+                  console.log(that.actual, that.expected, that.goal);
+
+									Polymer.dom(popoverEle).appendChild(wipWidget);
+									var referenceNode = document.getElementById(value.id);
+									that.querySelector('svg').insertBefore(popoverEle, referenceNode);
+
+								}
+
+	            });
+
+	            this.svg
+	                .append("line")
+	                .attr("class", "px-simple-win-loss-chart bar-chart-bottom-line")
+	                .attr("x1", 0)
+	                .attr("y1", this.yScale(0))
+	                .attr("x2", this.chartWidth)
+	                .attr("y2", this.yScale(0))
+        },
+
+        _drawBar: function(x, y, width, height, colorClass, id) {
+            this.svg
+                .append("rect")
+                .attr("class", "bar " + colorClass)
+                .attr("x", x)
+                .attr("y", y)
+                .attr("width", width)
+                .attr("height", height)
+                .attr("id", id)
+        }
+
+    });
 </script>

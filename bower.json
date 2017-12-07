@@ -32,7 +32,9 @@
     "d3": "~3.5.6",
     "px-simple-chart-common-behavior": "^2.0.0",
     "es6-promise": "3.3.1",
-    "iron-ajax": "^2.0.0"
+    "iron-ajax": "^2.0.0",
+    "px-popover": "^1.7.7",
+    "trans-wip-widget": "git@github.build.ge.com:GETVisual/trans-wip-widget.git#1.2.0"
   },
   "devDependencies": {
     "px-normalize-design": "^1.0.0",
@@ -41,6 +43,14 @@
     "px-theme": "^3.0.0"
   },
   "resolutions": {
-    "webcomponentsjs": "^0.7.24"
+    "webcomponentsjs": "^0.7.24",
+    "px-typography-design": "^1.1.1",
+    "px-colors-design": "^0.3.0",
+    "px-defaults-design": "^1.0.2",
+    "px-functions-design": "^1.0.0",
+    "px-mixins-design": "^0.3.0",
+    "iron-ajax": "^1.4.3",
+    "promise-polyfill": "^1.0.0",
+    "iron-resizable-behavior": "^1.0.5"
   }
 }
